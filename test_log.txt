@@ -1,0 +1,25 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\jeeva\AppData\Local\Programs\Python\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\jeeva\Myprojects\Railpredict AI
+plugins: anyio-4.12.1
+collecting ... collected 16 items
+
+tests/test_api_ws.py::test_dataset_api_endpoints PASSED                  [  6%]
+tests/test_api_ws.py::test_eta_calculation_endpoint PASSED               [ 12%]
+tests/test_api_ws.py::test_simulation_events_webhook PASSED              [ 18%]
+tests/test_api_ws.py::test_websocket_updates_logic PASSED                [ 25%]
+tests/test_eta_engine.py::test_calculate_downstream_delay PASSED         [ 31%]
+tests/test_eta_engine.py::test_calculate_delay_risk PASSED               [ 37%]
+tests/test_eta_engine.py::test_run_dynamic_eta_engine PASSED             [ 43%]
+tests/test_ml_pipeline.py::test_dataset_preprocessing_features PASSED    [ 50%]
+tests/test_ml_pipeline.py::test_ml_prediction_bounds PASSED              [ 56%]
+tests/test_ml_pipeline.py::test_ml_priority_congestion_sensitivity PASSED [ 62%]
+tests/test_scenarios.py::test_scenario_A_normal_run PASSED               [ 68%]
+tests/test_scenarios.py::test_scenario_B_starts_late PASSED              [ 75%]
+tests/test_scenarios.py::test_scenario_C_congestion PASSED               [ 81%]
+tests/test_scenarios.py::test_scenario_D_speed_restriction PASSED        [ 87%]
+tests/test_scenarios.py::test_scenario_E_congestion_clears PASSED        [ 93%]
+tests/test_scenarios.py::test_scenario_F_delay_partially_recovers PASSED [100%]
+
+============================= 16 passed in 2.18s ==============================

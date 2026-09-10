@@ -1,0 +1,31 @@
+﻿Starting XGBoost Model Training...
+Training XGBoost...
+
+--- Validation Metrics ---
+MAE:  1.07 minutes
+RMSE: 6.77 minutes
+R▓:   0.9580
+-------------------------
+
+--- Test Metrics ---
+MAE:  1.37 minutes
+RMSE: 6.31 minutes
+R▓:   0.9635
+-------------------------
+
+Model successfully saved to ml/models/eta_xgboost_pipeline.pkl
+
+--- Running Prediction Test Script ---
+Input Conditions:
+  scheduled_section_time_min: 55
+  current_delay_min: 15
+  average_speed_kmph: 80.0
+  congestion_level: 0.8
+  weather_condition: Light Fog
+  distance_km: 75.0
+  dwell_time_min: 5
+  historical_section_avg_time: 60
+  operational_event: Normal
+
+>> Predicted Actual Travel Time: 54.36000061035156 minutes
+>> Expected Delay added this section: -0.6399999856948853 minutes
