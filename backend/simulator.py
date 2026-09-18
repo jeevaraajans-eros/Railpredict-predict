@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 import logging
 import json
-from backend.store import ACTIVE_TRAINS, ROUTE_DATA, SIMULATION_STATE, GLOBAL_NETWORK_CONDITIONS, EVENT_TIMELINE
+from backend.store import ACTIVE_TRAINS, ROUTE_DATA, SIMULATION_STATE, GLOBAL_NETWORK_CONDITIONS, EVENT_TIMELINE, STATION_COORDS
 from backend.api.websockets import manager
 from backend.engine.eta_engine import run_dynamic_eta_engine
 
@@ -50,6 +50,23 @@ async def simulation_loop():
                     else:
                         train['status'] = 'COMPLETED'
                         train['current_section_id'] = None
+                        
+                # Update current_section to reflect any completion of the previous node
+                current_section = next((s for s in route if s['section_id'] == train['current_section_id']), None)
+                
+            if current_section:
+                start_station = train.get('current_station')
+                end_station = current_section.get('destination_station')
+                if start_station in STATION_COORDS and end_station in STATION_COORDS:
+                    start_lat, start_lon = STATION_COORDS[start_station]
+                    end_lat, end_lon = STATION_COORDS[end_station]
+                    fraction = min(1.0, train['distance_covered_in_section_km'] / current_section['distance_km'])
+                    train['current_location'] = [
+                        start_lat + (end_lat - start_lat) * fraction,
+                        start_lon + (end_lon - start_lon) * fraction
+                    ]
+            elif train['status'] == 'COMPLETED' and train.get('current_station') in STATION_COORDS:
+                train['current_location'] = STATION_COORDS[train['current_station']]
                         
             # Execute native ETA generation dynamically based on topological progression
             if train['current_section_id']:
