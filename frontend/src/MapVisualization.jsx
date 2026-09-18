@@ -28,7 +28,7 @@ export default function MapVisualization({ trainState, stationETAs }) {
   const routePath = Object.values(STATION_COORDS); 
 
   // Guard against missing coords
-  const currentLocation = STATION_COORDS[trainState.current_station] || center;
+  const currentLocation = trainState.current_location || STATION_COORDS[trainState.current_station] || center;
 
   // Derive unique markers for nodes currently waiting prediction logic
   const upcomingStationsList = stationETAs.map(eta => eta.station);

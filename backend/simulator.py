@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timedelta
 import logging
 import json
-from backend.store import ACTIVE_TRAINS, ROUTE_DATA, SIMULATION_STATE, GLOBAL_NETWORK_CONDITIONS
+from backend.store import ACTIVE_TRAINS, ROUTE_DATA, SIMULATION_STATE, GLOBAL_NETWORK_CONDITIONS, EVENT_TIMELINE
 from backend.api.websockets import manager
 from backend.engine.eta_engine import run_dynamic_eta_engine
 
@@ -27,8 +27,12 @@ async def simulation_loop():
             route = ROUTE_DATA.get(train_id, [])
             current_speed = GLOBAL_NETWORK_CONDITIONS.get('average_speed_kmph', 80.0)
             
-            # Calculate geometric mapping step
-            distance_advanced = (current_speed / 60.0) * advance_minutes
+            if GLOBAL_NETWORK_CONDITIONS.get('operational_event') != 'Normal':
+                distance_advanced = 0.0
+                train['current_delay_min'] += advance_minutes
+            else:
+                distance_advanced = (current_speed / 60.0) * advance_minutes
+            
             train['distance_covered_in_section_km'] += distance_advanced
             
             # Lookup exact current geometry
@@ -65,8 +69,13 @@ async def simulation_loop():
         # Synchronous transmission of universal matrices
         tick_data = {
             "type": "SIMULATION_TICK",
-            "time": SIMULATION_STATE['current_time'].strftime("%Y-%m-%d %H:%M:%S"),
+            "time": SIMULATION_STATE['current_time'].strftime("%H:%M:%S"),
             "trains": ACTIVE_TRAINS,
-            "network": GLOBAL_NETWORK_CONDITIONS
+            "network": GLOBAL_NETWORK_CONDITIONS,
+            "sim_state": {
+                "is_running": SIMULATION_STATE.get('is_running', False),
+                "speed_multiplier": SIMULATION_STATE.get('speed_multiplier', 1),
+                "timeline": EVENT_TIMELINE
+            }
         }
         await manager.broadcast(json.dumps(tick_data))

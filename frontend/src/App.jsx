@@ -9,6 +9,7 @@ const WS_URL = 'ws://localhost:8123/ws/live';
 function App() {
   const [trainState, setTrainState] = useState(null);
   const [stationETAs, setStationETAs] = useState([]);
+  const [simState, setSimState] = useState({ isRunning: false, time: '12:00:00', speedMultiplier: 1 });
   const [previousStationETAs, setPreviousStationETAs] = useState([]);
   const [eventExplanation, setEventExplanation] = useState("System loaded constraints chronologically from historical base schedule without topological disruptions.");
   
@@ -22,13 +23,16 @@ function App() {
 
   useEffect(() => {
     // 1. Initial Load Bootup 
-    axios.get(`${BACKEND_URL}/trains/${selectedTrain}/eta`)
+    axios.get(`${BACKEND_URL}/trains/${selectedTrain}`)
       .then(res => {
         if(res.data) {
-          setTrainState(res.data.initial_train_state);
+          setTrainState(res.data);
           // Zero delta baseline initialize
-          setStationETAs(res.data.station_wise_etas);
-          setPreviousStationETAs(res.data.station_wise_etas);
+          if (res.data.latest_eta) {
+             setStationETAs(res.data.latest_eta.station_wise_etas || []);
+             setPreviousStationETAs(res.data.latest_eta.station_wise_etas || []);
+             setEventExplanation(res.data.latest_eta.causal_breakdown || []);
+          }
         }
       })
       .catch(err => console.error("Error fetching Native Engine API mapping:", err));
@@ -41,6 +45,25 @@ function App() {
     ws.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
+        if (payload.type === 'SIMULATION_TICK') {
+          const ts = payload.trains[selectedTrain];
+          if (ts) {
+             setTrainState(ts);
+             if (ts.latest_eta) {
+                setStationETAs(ts.latest_eta.station_wise_etas || []);
+                setEventExplanation(ts.latest_eta.causal_breakdown || []);
+             }
+          }
+          if (payload.network) setNetworkConditions(payload.network);
+          if (payload.sim_state) {
+              setSimState({
+                isRunning: payload.sim_state.is_running,
+                time: payload.time,
+                speedMultiplier: payload.sim_state.speed_multiplier,
+                timeline: payload.sim_state.timeline
+              });
+          }
+        }
         if (payload.type === 'ETA_UPDATE' && payload.train_id === selectedTrain) {
           // Store Before vs After cleanly without mutation leakage via cascade
           setStationETAs(prevCurrent => {
@@ -49,25 +72,11 @@ function App() {
           });
           setTrainState(payload.data.initial_train_state);
         } else if (payload.type === 'NETWORK_EVENT') {
-          // Trap topological webhooks for dynamic contextual explanations
-          const type = payload.event.event_type;
-          const sev = payload.event.severity;
-          
-          let impactMsg = `A What-If event '${type.toUpperCase()}' was triggered directly at severity level ${sev.toFixed(2)}. `;
-          impactMsg += `This disrupted current ML vector bounds. The downstream ETA propagation engine mathematically evaluated structural accumulations mapped against historical block data to project entirely new cascade trajectories dynamically!`;
-          
-          setEventExplanation(impactMsg);
-          
-          if (type === 'congestion') {
-            setNetworkConditions(prev => ({ ...prev, congestion_level: sev }));
-          } else if (type === 'clear disruption') {
-            setNetworkConditions({ congestion_level: 0.1, operational_event: 'Normal', average_speed_kmph: 80.0 });
-            setEventExplanation("Block Disruption officially cleared! Train properties now physically recover mathematical minutes based purely against optimal baseline limits.");
-          } else if (type === 'operational halt') {
-            setNetworkConditions(prev => ({ ...prev, operational_event: 'Signal Failure' }));
-          } else if (type === 'speed restriction') {
-             setNetworkConditions(prev => ({ ...prev, average_speed_kmph: 80.0 * (1.0 - sev) }));
-          }
+          // Trap explicit event hooks triggering snapshot locking across ETAs dynamically
+          setStationETAs(current => {
+             setPreviousStationETAs(current);
+             return current;
+          });
         }
       } catch (err) {
         console.error("WS Engine Parse Error:", err);
@@ -100,7 +109,8 @@ function App() {
            previousStationETAs={previousStationETAs}
            eventExplanation={eventExplanation}
            networkConditions={networkConditions} 
-           backendUrl={BACKEND_URL} 
+           backendUrl={BACKEND_URL}
+           simState={simState}
          />
       </main>
     </div>
