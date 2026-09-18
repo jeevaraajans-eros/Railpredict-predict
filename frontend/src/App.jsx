@@ -3,8 +3,8 @@ import Dashboard from './Dashboard';
 import axios from 'axios';
 import './index.css';
 
-const BACKEND_URL = 'http://localhost:8123';
-const WS_URL = 'ws://localhost:8123/ws/live';
+const BACKEND_URL = 'http://localhost:8001';
+const WS_URL = 'ws://localhost:8001/ws/live';
 
 function App() {
   const [trainState, setTrainState] = useState(null);

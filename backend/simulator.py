@@ -27,11 +27,17 @@ async def simulation_loop():
             route = ROUTE_DATA.get(train_id, [])
             current_speed = GLOBAL_NETWORK_CONDITIONS.get('average_speed_kmph', 80.0)
             
+            section_disruption = GLOBAL_NETWORK_CONDITIONS.get('active_disruptions', {}).get(train.get('current_section_id'))
+            if section_disruption and section_disruption.get('type') == 'congestion':
+                effective_speed = max(20.0, current_speed * (1.0 - section_disruption.get('severity', 0)))
+            else:
+                effective_speed = current_speed
+            
             if GLOBAL_NETWORK_CONDITIONS.get('operational_event') != 'Normal':
                 distance_advanced = 0.0
                 train['current_delay_min'] += advance_minutes
             else:
-                distance_advanced = (current_speed / 60.0) * advance_minutes
+                distance_advanced = (effective_speed / 60.0) * advance_minutes
             
             train['distance_covered_in_section_km'] += distance_advanced
             
@@ -61,12 +67,15 @@ async def simulation_loop():
                     start_lat, start_lon = STATION_COORDS[start_station]
                     end_lat, end_lon = STATION_COORDS[end_station]
                     fraction = min(1.0, train['distance_covered_in_section_km'] / current_section['distance_km'])
-                    train['current_location'] = [
-                        start_lat + (end_lat - start_lat) * fraction,
-                        start_lon + (end_lon - start_lon) * fraction
-                    ]
+                    train['current_location'] = {
+                        "lat": start_lat + (end_lat - start_lat) * fraction,
+                        "lon": start_lon + (end_lon - start_lon) * fraction
+                    }
             elif train['status'] == 'COMPLETED' and train.get('current_station') in STATION_COORDS:
-                train['current_location'] = STATION_COORDS[train['current_station']]
+                train['current_location'] = {
+                    "lat": STATION_COORDS[train['current_station']][0],
+                    "lon": STATION_COORDS[train['current_station']][1]
+                }
                         
             # Execute native ETA generation dynamically based on topological progression
             if train['current_section_id']:
@@ -79,6 +88,16 @@ async def simulation_loop():
                         remaining_route=remaining_route,
                         network_conditions=GLOBAL_NETWORK_CONDITIONS
                     )
+                    
+                    # Track delay changes to trigger propagation events exactly once
+                    latest_eta = train.get('latest_eta') or {}
+                    old_delay = latest_eta.get('final_destination_delay_min', train['current_delay_min'])
+                    new_delay = engine_output.get('final_destination_delay_min', 0)
+                    if new_delay > old_delay:
+                        delay_diff = new_delay - old_delay
+                        sim_time_str = SIMULATION_STATE['current_time'].strftime("%H:%M:%S")
+                        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Delay Propagation Detected: +{delay_diff}m to downstream network", "type": "WARNING"})
+                        
                     train['latest_eta'] = engine_output
                 except Exception as e:
                     logger.error(f"XGBoost Cascade Failure: {e}")

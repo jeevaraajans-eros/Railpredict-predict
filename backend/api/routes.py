@@ -26,13 +26,13 @@ def get_train_details(train_id: str):
     return {"train": ACTIVE_TRAINS[train_id], "route": ROUTE_DATA.get(train_id, [])}
 
 @router.get("/trains/{train_id}/eta")
-def get_train_eta(train_id: str):
+async def get_train_eta(train_id: str):
     if train_id not in ACTIVE_TRAINS:
         raise HTTPException(status_code=404, detail="Train not found")
         
     try:
         engine_output = run_dynamic_eta_engine(
-            current_time=datetime.now(),
+            current_time=SIMULATION_STATE['current_time'],
             train_state=ACTIVE_TRAINS[train_id],
             remaining_route=ROUTE_DATA.get(train_id, []),
             network_conditions=GLOBAL_NETWORK_CONDITIONS
@@ -43,12 +43,12 @@ def get_train_eta(train_id: str):
         raise HTTPException(status_code=500, detail="Internal ETA Engine Calculation Failed")
 
 @router.get("/trains/{train_id}/prediction")
-def get_train_prediction(train_id: str):
-    eta = get_train_eta(train_id)
+async def get_train_prediction(train_id: str):
+    eta = await get_train_eta(train_id)
     return {"predictions": eta['station_wise_etas']}
 
 async def trigger_eta_recalculation(train_id: str):
-    eta = get_train_eta(train_id)
+    eta = await get_train_eta(train_id)
     message = {
         "type": "ETA_UPDATE",
         "train_id": train_id,
@@ -81,8 +81,15 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
 
     # Translate simulation commands to mathematical engine states
     if event.event_type == "congestion":
+        active_section = ACTIVE_TRAINS[event.train_id].get('current_section_id')
+        if 'active_disruptions' not in GLOBAL_NETWORK_CONDITIONS:
+            GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
+        GLOBAL_NETWORK_CONDITIONS['active_disruptions'][active_section] = {
+            "type": "congestion",
+            "severity": event.severity
+        }
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = event.severity
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Congestion detected directly ahead", "type": "WARNING"})
+        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Congestion detected on {active_section}", "type": "WARNING"})
     elif event.event_type == "speed restriction":
         GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0 * (1.0 - event.severity)
         EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Speed drops to {GLOBAL_NETWORK_CONDITIONS['average_speed_kmph']} km/h", "type": "WARNING"})
@@ -94,6 +101,7 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
         GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0
+        GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
         EVENT_TIMELINE.append({"time": sim_time_str, "event": "Clear Disruption authorized. Matrix relaxing.", "type": "INFO"})
         EVENT_TIMELINE.append({"time": sim_time_str, "event": "Delay recovery constraints unlocking dynamically.", "type": "INFO"})
     else:
