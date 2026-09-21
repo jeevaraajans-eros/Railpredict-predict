@@ -77,7 +77,8 @@ async def simulation_loop():
                         current_time=SIMULATION_STATE['current_time'],
                         train_state=train,
                         remaining_route=remaining_route,
-                        network_conditions=GLOBAL_NETWORK_CONDITIONS
+                        network_conditions=GLOBAL_NETWORK_CONDITIONS,
+                        active_trains=ACTIVE_TRAINS
                     )
                     train['latest_eta'] = engine_output
                 except Exception as e:
