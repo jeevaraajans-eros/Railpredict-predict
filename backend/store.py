@@ -94,9 +94,10 @@ SIMULATION_STATE = get_initial_simulation_state()
 EVENT_TIMELINE = [{"time": "12:00:00", "event": "Train 12004 Dispatched onto Corridor", "type": "INFO"}]
 ACTIVE_TRAINS = get_initial_trains()
 GLOBAL_NETWORK_CONDITIONS = get_initial_network()
+LAST_KNOWN_STATE = {}
 
 def reset_simulation():
-    global SIMULATION_STATE, EVENT_TIMELINE, ACTIVE_TRAINS, GLOBAL_NETWORK_CONDITIONS
+    global SIMULATION_STATE, EVENT_TIMELINE, ACTIVE_TRAINS, GLOBAL_NETWORK_CONDITIONS, LAST_KNOWN_STATE
     SIMULATION_STATE.clear()
     SIMULATION_STATE.update(get_initial_simulation_state())
     
@@ -108,3 +109,5 @@ def reset_simulation():
     
     GLOBAL_NETWORK_CONDITIONS.clear()
     GLOBAL_NETWORK_CONDITIONS.update(get_initial_network())
+    
+    LAST_KNOWN_STATE.clear()

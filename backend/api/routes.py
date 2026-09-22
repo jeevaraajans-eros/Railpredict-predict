@@ -35,7 +35,8 @@ async def get_train_eta(train_id: str):
             current_time=SIMULATION_STATE['current_time'],
             train_state=ACTIVE_TRAINS[train_id],
             remaining_route=ROUTE_DATA.get(train_id, []),
-            network_conditions=GLOBAL_NETWORK_CONDITIONS
+            network_conditions=GLOBAL_NETWORK_CONDITIONS,
+            previous_eta=ACTIVE_TRAINS[train_id].get('latest_eta')
         )
         return engine_output
     except Exception as e:
@@ -89,21 +90,16 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
             "severity": event.severity
         }
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = event.severity
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Congestion detected on {active_section}", "type": "WARNING"})
     elif event.event_type == "speed restriction":
         GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0 * (1.0 - event.severity)
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Speed drops to {GLOBAL_NETWORK_CONDITIONS['average_speed_kmph']} km/h", "type": "WARNING"})
     elif event.event_type == "operational halt":
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Signal Failure'
         ACTIVE_TRAINS[event.train_id]['current_delay_min'] += int(30 * event.severity)
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Operational Halt deployed. +{int(30 * event.severity)}m delay.", "type": "WARNING"})
     elif event.event_type == "clear disruption":
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
         GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0
         GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": "Clear Disruption authorized. Matrix relaxing.", "type": "INFO"})
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": "Delay recovery constraints unlocking dynamically.", "type": "INFO"})
     else:
         raise HTTPException(status_code=400, detail="Invalid event type")
     
@@ -113,6 +109,41 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
     }
     await manager.broadcast(json.dumps(event_msg))
     
-    # Asynchronously recalculate ETA bounds so API returns fast
     background_tasks.add_task(trigger_eta_recalculation, event.train_id)
     return {"status": "Event processed and dynamic ETA recalculation triggered"}
+
+@router.post("/simulation/demo")
+async def trigger_sih_demo(background_tasks: BackgroundTasks):
+    from backend.store import reset_simulation
+    import asyncio
+    
+    reset_simulation()
+    
+    async def demo_sequence():
+        # PHASE 1
+        SIMULATION_STATE['is_running'] = True
+        SIMULATION_STATE['speed_multiplier'] = 10
+        await asyncio.sleep(3.0) 
+        
+        # PHASE 2 & 3: Inject congestion
+        if 'active_disruptions' not in GLOBAL_NETWORK_CONDITIONS:
+            GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
+        GLOBAL_NETWORK_CONDITIONS['active_disruptions']["GZB-ALJN"] = {
+            "type": "congestion",
+            "severity": 0.9
+        }
+        GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.9
+        await asyncio.sleep(5.0)
+        
+        # PHASE 6: Clear disruption
+        GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
+        GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
+        GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0
+        GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
+        
+        # PHASE 7: Final state after recovery
+        await asyncio.sleep(5.0)
+        SIMULATION_STATE['is_running'] = False
+        
+    background_tasks.add_task(demo_sequence)
+    return {"status": "SIH Demo Sequence Started"}

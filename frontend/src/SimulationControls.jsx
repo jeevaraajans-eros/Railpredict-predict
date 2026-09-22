@@ -49,6 +49,11 @@ export default function SimulationControls({ trainId, backendUrl, simState }) {
         <button onClick={() => triggerEvent('operational halt', 1.0)} className="bg-rose-900/30 hover:bg-rose-800/40 border border-rose-800/50 text-rose-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left">Operational Halt</button>
         <button onClick={() => triggerEvent('clear disruption', 0.0)} className="bg-slate-800/60 hover:bg-slate-700 border border-slate-700/80 text-slate-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left shadow-sm">Clear Disruption</button>
       </div>
+
+      <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-4">Automated Presentation</h3>
+      <button onClick={() => axios.post(`${backendUrl}/simulation/demo`)} className="bg-purple-900/60 hover:bg-purple-800 border border-purple-700 text-purple-200 px-4 py-3 rounded-lg text-xs font-black tracking-widest transition-all uppercase w-full shadow-lg shadow-purple-900/20 flex justify-center items-center gap-2">
+         🚀 Run SIH Demo Sequence
+      </button>
     </div>
   );
 }

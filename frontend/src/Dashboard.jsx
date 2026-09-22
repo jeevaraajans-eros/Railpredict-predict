@@ -63,8 +63,8 @@ export default function Dashboard({ trainState, stationETAs, previousStationETAs
              {simState?.timeline?.slice().reverse().map((evt, idx) => (
                 <div key={idx} className="flex gap-4 relative">
                    <div className={`w-2 h-2 rounded-full absolute -left-[9px] top-1 border-2 border-slate-900 shadow-sm ${evt.type === 'WARNING' ? 'bg-rose-500' : 'bg-blue-500'}`}></div>
-                   <div className="text-[10px] font-mono font-bold text-slate-500 w-12 pt-0.5">{evt.time}</div>
-                   <div className="text-xs font-bold text-slate-200">{evt.event}</div>
+                   <div className="text-[10px] font-mono font-bold text-slate-500 w-12 pt-0.5 shrink-0">{evt.time}</div>
+                   <div className="text-xs font-bold text-slate-200 whitespace-pre-wrap leading-relaxed">{evt.event}</div>
                 </div>
              ))}
              {(!simState?.timeline || simState.timeline.length === 0) && <div className="text-xs text-slate-500 ml-4 font-bold">No events tracked.</div>}

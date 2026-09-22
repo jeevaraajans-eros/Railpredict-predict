@@ -1,0 +1,22 @@
+{
+    "dataset_type": "SIMULATION/REPLAY",
+    "target": "actual_section_time_min",
+    "baseline_definition": "scheduled_section_time_min",
+    "samples_evaluated": 224,
+    "metrics": {
+        "model": {
+            "mae": 1.37,
+            "rmse": 6.31,
+            "within_5_min": 94.64,
+            "within_10_min": 96.88,
+            "within_15_min": 98.21
+        },
+        "baseline": {
+            "mae": 19.36,
+            "rmse": 28.7,
+            "within_5_min": 22.77,
+            "within_10_min": 44.64,
+            "within_15_min": 60.71
+        }
+    }
+}
