@@ -80,24 +80,33 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
     sim_time_str = SIMULATION_STATE['current_time'].strftime("%H:%M:%S")
 
     # Translate simulation commands to mathematical engine states
+    event_message = ""
+    event_level = "WARNING"
+    
     if event.event_type == "congestion":
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = event.severity
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Congestion detected directly ahead", "type": "WARNING"})
+        event_message = f"Congestion detected directly ahead"
     elif event.event_type == "speed restriction":
         GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0 * (1.0 - event.severity)
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Speed drops to {GLOBAL_NETWORK_CONDITIONS['average_speed_kmph']} km/h", "type": "WARNING"})
+        event_message = f"Speed drops to {GLOBAL_NETWORK_CONDITIONS['average_speed_kmph']} km/h"
     elif event.event_type == "operational halt":
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Signal Failure'
         ACTIVE_TRAINS[event.train_id]['current_delay_min'] += int(30 * event.severity)
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": f"Operational Halt deployed. +{int(30 * event.severity)}m delay.", "type": "WARNING"})
+        event_message = f"Operational Halt deployed. +{int(30 * event.severity)}m delay."
     elif event.event_type == "clear disruption":
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
         GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": "Clear Disruption authorized. Matrix relaxing.", "type": "INFO"})
-        EVENT_TIMELINE.append({"time": sim_time_str, "event": "Delay recovery constraints unlocking dynamically.", "type": "INFO"})
+        event_message = "Clear Disruption authorized. Matrix relaxing."
+        event_level = "INFO"
     else:
         raise HTTPException(status_code=400, detail="Invalid event type")
+
+    # Duplicate prevention: only append if the last event wasn't identical
+    if not EVENT_TIMELINE or EVENT_TIMELINE[-1].get("event") != event_message:
+        EVENT_TIMELINE.append({"time": sim_time_str, "event": event_message, "type": event_level})
+        if event.event_type == "clear disruption":
+            EVENT_TIMELINE.append({"time": sim_time_str, "event": "Delay recovery constraints unlocking dynamically.", "type": "INFO"})
     
     event_msg = {
         "type": "NETWORK_EVENT",

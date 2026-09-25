@@ -224,7 +224,7 @@ def run_dynamic_eta_engine(
     final_delay = station_predictions[-1]['accumulated_delay_min'] if station_predictions else train_state.get('current_delay_min', 0)
 
     return {
-        'initial_train_state': train_state,
+        'initial_train_state': {k: v for k, v in train_state.items() if k != 'latest_eta'},
         'station_wise_etas': station_predictions,
         'final_destination_delay_min': final_delay,
         'causal_breakdown': [

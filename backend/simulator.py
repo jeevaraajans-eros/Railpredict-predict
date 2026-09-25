@@ -13,76 +13,75 @@ async def simulation_loop():
     while True:
         await asyncio.sleep(1.0)
         
-        if not SIMULATION_STATE.get('is_running', False):
-            continue
-            
         # 1 real second = N simulation minutes
         advance_minutes = SIMULATION_STATE.get('speed_multiplier', 1)
-        SIMULATION_STATE['current_time'] += timedelta(minutes=advance_minutes)
         
-        for train_id, train in ACTIVE_TRAINS.items():
-            if train.get('status') != 'EN_ROUTE':
-                continue
-                
-            route = ROUTE_DATA.get(train_id, [])
-            current_speed = GLOBAL_NETWORK_CONDITIONS.get('average_speed_kmph', 80.0)
-            
-            if GLOBAL_NETWORK_CONDITIONS.get('operational_event') != 'Normal':
-                distance_advanced = 0.0
-                train['current_delay_min'] += advance_minutes
-            else:
-                distance_advanced = (current_speed / 60.0) * advance_minutes
-            
-            train['distance_covered_in_section_km'] += distance_advanced
-            
-            # Lookup exact current geometry
-            current_section = next((s for s in route if s['section_id'] == train['current_section_id']), None)
-            
-            if current_section:
-                if train['distance_covered_in_section_km'] >= current_section['distance_km']:
-                    # Node completely crossed - anchor to next station
-                    train['current_station'] = current_section['destination_station']
-                    train['distance_covered_in_section_km'] = 0.0
+        if SIMULATION_STATE.get('is_running', False):
+            SIMULATION_STATE['current_time'] += timedelta(minutes=advance_minutes)
+        
+            for train_id, train in ACTIVE_TRAINS.items():
+                if train.get('status') != 'EN_ROUTE':
+                    continue
                     
-                    idx = route.index(current_section)
-                    if idx + 1 < len(route):
-                        train['current_section_id'] = route[idx + 1]['section_id']
-                    else:
-                        train['status'] = 'COMPLETED'
-                        train['current_section_id'] = None
-                        
-                # Update current_section to reflect any completion of the previous node
+                route = ROUTE_DATA.get(train_id, [])
+                current_speed = GLOBAL_NETWORK_CONDITIONS.get('average_speed_kmph', 80.0)
+                
+                if GLOBAL_NETWORK_CONDITIONS.get('operational_event') != 'Normal':
+                    distance_advanced = 0.0
+                    train['current_delay_min'] += advance_minutes
+                else:
+                    distance_advanced = (current_speed / 60.0) * advance_minutes
+                
+                train['distance_covered_in_section_km'] += distance_advanced
+                
+                # Lookup exact current geometry
                 current_section = next((s for s in route if s['section_id'] == train['current_section_id']), None)
                 
-            if current_section:
-                start_station = train.get('current_station')
-                end_station = current_section.get('destination_station')
-                if start_station in STATION_COORDS and end_station in STATION_COORDS:
-                    start_lat, start_lon = STATION_COORDS[start_station]
-                    end_lat, end_lon = STATION_COORDS[end_station]
-                    fraction = min(1.0, train['distance_covered_in_section_km'] / current_section['distance_km'])
-                    train['current_location'] = [
-                        start_lat + (end_lat - start_lat) * fraction,
-                        start_lon + (end_lon - start_lon) * fraction
-                    ]
-            elif train['status'] == 'COMPLETED' and train.get('current_station') in STATION_COORDS:
-                train['current_location'] = STATION_COORDS[train['current_station']]
+                if current_section:
+                    if train['distance_covered_in_section_km'] >= current_section['distance_km']:
+                        # Node completely crossed - anchor to next station
+                        train['current_station'] = current_section['destination_station']
+                        train['distance_covered_in_section_km'] = 0.0
                         
-            # Execute native ETA generation dynamically based on topological progression
-            if train['current_section_id']:
-                current_idx = next((i for i, s in enumerate(route) if s['section_id'] == train['current_section_id']), 0)
-                remaining_route = route[current_idx:]
-                try:
-                    engine_output = run_dynamic_eta_engine(
-                        current_time=SIMULATION_STATE['current_time'],
-                        train_state=train,
-                        remaining_route=remaining_route,
-                        network_conditions=GLOBAL_NETWORK_CONDITIONS,
-                        active_trains=ACTIVE_TRAINS
-                    )
-                    train['latest_eta'] = engine_output
-                except Exception as e:
-                    logger.error(f"XGBoost Cascade Failure: {e}")
+                        idx = route.index(current_section)
+                        if idx + 1 < len(route):
+                            train['current_section_id'] = route[idx + 1]['section_id']
+                        else:
+                            train['status'] = 'COMPLETED'
+                            train['current_section_id'] = None
+                            
+                    # Update current_section to reflect any completion of the previous node
+                    current_section = next((s for s in route if s['section_id'] == train['current_section_id']), None)
+                    
+                if current_section:
+                    start_station = train.get('current_station')
+                    end_station = current_section.get('destination_station')
+                    if start_station in STATION_COORDS and end_station in STATION_COORDS:
+                        start_lat, start_lon = STATION_COORDS[start_station]
+                        end_lat, end_lon = STATION_COORDS[end_station]
+                        fraction = min(1.0, train['distance_covered_in_section_km'] / current_section['distance_km'])
+                        train['current_location'] = [
+                            start_lat + (end_lat - start_lat) * fraction,
+                            start_lon + (end_lon - start_lon) * fraction
+                        ]
+                elif train['status'] == 'COMPLETED' and train.get('current_station') in STATION_COORDS:
+                    train['current_location'] = STATION_COORDS[train['current_station']]
+                            
+                # Execute native ETA generation dynamically based on topological progression
+                if train['current_section_id']:
+                    current_idx = next((i for i, s in enumerate(route) if s['section_id'] == train['current_section_id']), 0)
+                    remaining_route = route[current_idx:]
+                    try:
+                        engine_output = run_dynamic_eta_engine(
+                            current_time=SIMULATION_STATE['current_time'],
+                            train_state=train,
+                            remaining_route=remaining_route,
+                            network_conditions=GLOBAL_NETWORK_CONDITIONS,
+                            active_trains=ACTIVE_TRAINS
+                        )
+                        train['latest_eta'] = engine_output
+                    except Exception as e:
+                        logger.error(f"XGBoost Cascade Failure: {e}")
                     
         # Synchronous transmission of universal matrices
         tick_data = {

@@ -11,15 +11,95 @@ tests/test_api_ws.py::test_simulation_events_webhook PASSED              [ 18%]
 tests/test_api_ws.py::test_websocket_updates_logic PASSED                [ 25%]
 tests/test_eta_engine.py::test_calculate_downstream_delay PASSED         [ 31%]
 tests/test_eta_engine.py::test_calculate_delay_risk PASSED               [ 37%]
-tests/test_eta_engine.py::test_run_dynamic_eta_engine PASSED             [ 43%]
+tests/test_eta_engine.py::test_run_dynamic_eta_engine FAILED             [ 43%]
 tests/test_ml_pipeline.py::test_dataset_preprocessing_features PASSED    [ 50%]
 tests/test_ml_pipeline.py::test_ml_prediction_bounds PASSED              [ 56%]
 tests/test_ml_pipeline.py::test_ml_priority_congestion_sensitivity PASSED [ 62%]
 tests/test_scenarios.py::test_scenario_A_normal_run PASSED               [ 68%]
-tests/test_scenarios.py::test_scenario_B_starts_late PASSED              [ 75%]
+tests/test_scenarios.py::test_scenario_B_starts_late FAILED              [ 75%]
 tests/test_scenarios.py::test_scenario_C_congestion PASSED               [ 81%]
 tests/test_scenarios.py::test_scenario_D_speed_restriction PASSED        [ 87%]
 tests/test_scenarios.py::test_scenario_E_congestion_clears PASSED        [ 93%]
 tests/test_scenarios.py::test_scenario_F_delay_partially_recovers PASSED [100%]
 
-============================= 16 passed in 2.18s ==============================
+================================== FAILURES ===================================
+_________________________ test_run_dynamic_eta_engine _________________________
+
+    def test_run_dynamic_eta_engine():
+        current_time = datetime(2025, 1, 1, 10, 0)
+        train_state = {
+            'train_id': '12004',
+            'current_delay_min': 10,
+            'current_station': 'NDLS'
+        }
+    
+        remaining_route = [
+            {
+                'section_id': 'NDLS-GZB',
+                'destination_station': 'GZB',
+                'distance_km': 25.0,
+                'scheduled_section_time_min': 30,
+                'dwell_time_min': 5,
+                'historical_section_avg_time': 32
+            },
+            {
+                'section_id': 'GZB-ALJN',
+                'destination_station': 'ALJN',
+                'distance_km': 100.0,
+                'scheduled_section_time_min': 80,
+                'dwell_time_min': 5,
+                'historical_section_avg_time': 85
+            }
+        ]
+    
+        network_conditions = {
+            'congestion_level': 0.2,
+            'weather_condition': 'Clear',
+            'operational_event': 'Normal',
+            'average_speed_kmph': 80.0
+        }
+    
+        output = run_dynamic_eta_engine(current_time, train_state, remaining_route, network_conditions)
+    
+>       assert 'initial_train_state' in output
+E       AssertionError: assert 'initial_train_state' in {'station_wise_etas': [{'station': 'GZB', 'predicted_travel_time_min': 18, 'accumulated_delay_min': 10, 'predicted_arrival': '2025-01-01 10:18:00', ...}, {'station': 'ALJN', 'predicted_travel_time_min': 75, 'accumulated_delay_min': 10, 'predicted_arrival': '2025-01-01 11:38:00', ...}], 'final_destination_delay_min': 10, 'causal_breakdown': [{'label': 'Simulation Base', 'value': 'Active'}]}
+
+tests\test_eta_engine.py:61: AssertionError
+_________________________ test_scenario_B_starts_late _________________________
+
+    def test_scenario_B_starts_late():
+        base = build_base_state()
+        base['train_state']['current_delay_min'] = 10
+        out = run_dynamic_eta_engine(**base)
+        stn_a_delay = out['station_wise_etas'][0]['accumulated_delay_min']
+        assert 0 <= stn_a_delay <= 15
+>       assert "carryover" in out['station_wise_etas'][0]['explanation'].lower()
+E       AssertionError: assert 'carryover' in 'driven safely by physical geographical velocity structures baseline.'
+E        +  where 'driven safely by physical geographical velocity structures baseline.' = <built-in method lower of str object at 0x00000232C8C85B50>()
+E        +    where <built-in method lower of str object at 0x00000232C8C85B50> = 'Driven safely by physical geographical velocity structures baseline.'.lower
+
+tests\test_scenarios.py:32: AssertionError
+============================== warnings summary ===============================
+backend\main.py:30
+  C:\Users\jeeva\Myprojects\Railpredict AI\backend\main.py:30: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\applications.py:4599
+  C:\Users\jeeva\AppData\Local\Programs\Python\Python313\Lib\site-packages\fastapi\applications.py:4599: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_eta_engine.py::test_run_dynamic_eta_engine - AssertionError...
+FAILED tests/test_scenarios.py::test_scenario_B_starts_late - AssertionError:...
+================== 2 failed, 14 passed, 2 warnings in 22.11s ==================
