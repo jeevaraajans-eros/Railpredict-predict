@@ -87,8 +87,9 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = event.severity
         event_message = f"Congestion detected directly ahead"
     elif event.event_type == "speed restriction":
-        GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0 * (1.0 - event.severity)
-        event_message = f"Speed drops to {GLOBAL_NETWORK_CONDITIONS['average_speed_kmph']} km/h"
+        target = 80.0 * (1.0 - event.severity)
+        GLOBAL_NETWORK_CONDITIONS['target_speed_kmph'] = target
+        event_message = f"Speed dropping to {target} km/h"
     elif event.event_type == "operational halt":
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Signal Failure'
         ACTIVE_TRAINS[event.train_id]['current_delay_min'] += int(30 * event.severity)
@@ -96,7 +97,7 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
     elif event.event_type == "clear disruption":
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
-        GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0
+        GLOBAL_NETWORK_CONDITIONS['target_speed_kmph'] = 80.0
         event_message = "Clear Disruption authorized. Matrix relaxing."
         event_level = "INFO"
     else:

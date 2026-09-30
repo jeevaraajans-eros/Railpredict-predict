@@ -86,7 +86,9 @@ def get_initial_network():
         'congestion_level': 0.1,
         'weather_condition': 'Clear',
         'operational_event': 'Normal',
-        'average_speed_kmph': 80.0
+        'average_speed_kmph': 80.0,
+        'target_speed_kmph': 80.0,
+        'speed_trend': '='
     }
 
 # Memory reference bindings maintained exactly

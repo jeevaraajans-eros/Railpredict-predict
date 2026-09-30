@@ -23,7 +23,10 @@ export default function Dashboard({ trainState, stationETAs, previousStationETAs
               </div>
               <div>
                 <div className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-1">Speed</div>
-                <div className="text-blue-400 font-black text-sm tracking-wide">{networkConditions?.average_speed_kmph ? networkConditions.average_speed_kmph.toFixed(0) : 80} km/h</div>
+                <div className="text-blue-400 font-black text-sm tracking-wide">
+                  <span className="font-mono text-emerald-400 font-black text-md tracking-tighter mr-1">{networkConditions?.speed_trend || '='}</span> 
+                  {networkConditions?.average_speed_kmph ? networkConditions.average_speed_kmph.toFixed(0) : 80} km/h
+                </div>
               </div>
               <div>
                 <div className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-1">Current Delay</div>

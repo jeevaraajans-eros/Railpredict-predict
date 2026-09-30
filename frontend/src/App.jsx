@@ -25,13 +25,13 @@ function App() {
     // 1. Initial Load Bootup 
     axios.get(`${BACKEND_URL}/trains/${selectedTrain}`)
       .then(res => {
-        if(res.data) {
-          setTrainState(res.data);
+        if(res.data && res.data.train) {
+          setTrainState(res.data.train);
           // Zero delta baseline initialize
-          if (res.data.latest_eta) {
-             setStationETAs(res.data.latest_eta.station_wise_etas || []);
-             setPreviousStationETAs(res.data.latest_eta.station_wise_etas || []);
-             setEventExplanation(res.data.latest_eta.causal_breakdown || []);
+          if (res.data.train.latest_eta) {
+             setStationETAs(res.data.train.latest_eta.station_wise_etas || []);
+             setPreviousStationETAs(res.data.train.latest_eta.station_wise_etas || []);
+             setEventExplanation(res.data.train.latest_eta.causal_breakdown || []);
           }
         }
       })

@@ -1,4 +1,5 @@
 import asyncio
+import random
 from datetime import datetime, timedelta
 import logging
 import json
@@ -19,6 +20,37 @@ async def simulation_loop():
         if SIMULATION_STATE.get('is_running', False):
             SIMULATION_STATE['current_time'] += timedelta(minutes=advance_minutes)
         
+            # --- Real-Time Speed Inertia & Fluctuations ---
+            target = GLOBAL_NETWORK_CONDITIONS.get('target_speed_kmph', 80.0)
+            current = GLOBAL_NETWORK_CONDITIONS.get('average_speed_kmph', 80.0)
+            is_halted = GLOBAL_NETWORK_CONDITIONS.get('operational_event') != 'Normal'
+            
+            if is_halted:
+                target = 0.0
+            
+            max_change = 10.0 * advance_minutes  # 10 km/h acceleration per minute
+            
+            if abs(target - current) <= max_change:
+                current = target
+            elif current < target:
+                current += max_change
+            elif current > target:
+                current -= max_change
+                
+            if current == target and target > 0 and not is_halted:
+                current += random.uniform(-1.5, 1.5)
+            
+            if current < target - 1.0:
+                trend = '<'
+            elif current > target + 1.0:
+                trend = '>'
+            else:
+                trend = '='
+                
+            GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = max(0.0, current)
+            GLOBAL_NETWORK_CONDITIONS['speed_trend'] = trend
+            # -----------------------------------------------
+            
             for train_id, train in ACTIVE_TRAINS.items():
                 if train.get('status') != 'EN_ROUTE':
                     continue
