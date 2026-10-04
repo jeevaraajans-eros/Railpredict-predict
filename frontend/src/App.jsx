@@ -8,6 +8,7 @@ const WS_URL = 'ws://localhost:8123/ws/live';
 
 function App() {
   const [trainState, setTrainState] = useState(null);
+  const [allTrains, setAllTrains] = useState({});
   const [stationETAs, setStationETAs] = useState([]);
   const [simState, setSimState] = useState({ isRunning: false, time: '12:00:00', speedMultiplier: 1 });
   const [previousStationETAs, setPreviousStationETAs] = useState([]);
@@ -46,6 +47,7 @@ function App() {
       try {
         const payload = JSON.parse(event.data);
         if (payload.type === 'SIMULATION_TICK') {
+          setAllTrains(payload.trains || {});
           const ts = payload.trains[selectedTrain];
           if (ts) {
              setTrainState(ts);
@@ -111,6 +113,7 @@ function App() {
            networkConditions={networkConditions} 
            backendUrl={BACKEND_URL}
            simState={simState}
+           allTrains={allTrains}
          />
       </main>
     </div>

@@ -2,8 +2,8 @@ import React from 'react';
 import axios from 'axios';
 
 export default function SimulationControls({ trainId, backendUrl, simState }) {
-  const triggerEvent = (event_type, severity) => {
-    axios.post(`${backendUrl}/simulation/event`, { train_id: trainId, event_type, severity })
+  const triggerEvent = (event_type, severity, details = null) => {
+    axios.post(`${backendUrl}/simulation/event`, { train_id: trainId, event_type, severity, details })
       .catch(err => console.error("Webhook dispatch failed", err));
   };
 
@@ -44,10 +44,10 @@ export default function SimulationControls({ trainId, backendUrl, simState }) {
       {/* Event Webhooks */}
       <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Disruption Scenarios</h3>
       <div className="grid grid-cols-2 gap-2">
-        <button onClick={() => triggerEvent('congestion', 1.0)} className="bg-blue-900/40 hover:bg-blue-800/60 border border-blue-800/60 text-blue-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left">Inject Congestion</button>
-        <button onClick={() => triggerEvent('speed restriction', 0.5)} className="bg-orange-900/30 hover:bg-orange-800/40 border border-orange-800/50 text-orange-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left">Speed Restriction</button>
-        <button onClick={() => triggerEvent('operational halt', 1.0)} className="bg-rose-900/30 hover:bg-rose-800/40 border border-rose-800/50 text-rose-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left">Operational Halt</button>
-        <button onClick={() => triggerEvent('clear disruption', 0.0)} className="bg-slate-800/60 hover:bg-slate-700 border border-slate-700/80 text-slate-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left shadow-sm">Clear Disruption</button>
+        <button onClick={() => triggerEvent('congestion', 1.0, 'Agricultural Heavy Fog')} className="bg-blue-900/40 hover:bg-blue-800/60 border border-blue-800/60 text-blue-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left">Inject Congestion</button>
+        <button onClick={() => triggerEvent('speed restriction', 0.5, 'Track Maintenance Work')} className="bg-orange-900/30 hover:bg-orange-800/40 border border-orange-800/50 text-orange-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left">Speed Restriction</button>
+        <button onClick={() => triggerEvent('operational halt', 1.0, 'Locomotive Issue / Breakdown')} className="bg-rose-900/30 hover:bg-rose-800/40 border border-rose-800/50 text-rose-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left">Operational Halt</button>
+        <button onClick={() => triggerEvent('clear disruption', 0.0, 'Normal Track Cleared')} className="bg-slate-800/60 hover:bg-slate-700 border border-slate-700/80 text-slate-200 px-3 py-2 rounded text-[10px] font-bold tracking-wider transition-all uppercase text-left shadow-sm">Clear Disruption</button>
       </div>
     </div>
   );

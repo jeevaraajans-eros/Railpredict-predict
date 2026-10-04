@@ -85,20 +85,20 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
     
     if event.event_type == "congestion":
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = event.severity
-        event_message = f"Congestion detected directly ahead"
+        event_message = f"Congestion detected directly ahead. {f'[{event.details}]' if event.details else ''}"
     elif event.event_type == "speed restriction":
         target = 80.0 * (1.0 - event.severity)
         GLOBAL_NETWORK_CONDITIONS['target_speed_kmph'] = target
-        event_message = f"Speed dropping to {target} km/h"
+        event_message = f"Speed dropping to {target} km/h. {f'[{event.details}]' if event.details else ''}"
     elif event.event_type == "operational halt":
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Signal Failure'
         ACTIVE_TRAINS[event.train_id]['current_delay_min'] += int(30 * event.severity)
-        event_message = f"Operational Halt deployed. +{int(30 * event.severity)}m delay."
+        event_message = f"Operational Halt deployed. +{int(30 * event.severity)}m delay. {f'[{event.details}]' if event.details else ''}"
     elif event.event_type == "clear disruption":
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
         GLOBAL_NETWORK_CONDITIONS['target_speed_kmph'] = 80.0
-        event_message = "Clear Disruption authorized. Matrix relaxing."
+        event_message = f"Clear Disruption authorized. Matrix relaxing. {f'[{event.details}]' if event.details else ''}"
         event_level = "INFO"
     else:
         raise HTTPException(status_code=400, detail="Invalid event type")
