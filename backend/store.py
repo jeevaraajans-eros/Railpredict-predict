@@ -1,10 +1,10 @@
 from datetime import datetime
 
 STATION_COORDS = {
-  'NDLS': [28.6139, 77.2090],
-  'GZB': [28.6692, 77.4538],
-  'ALJN': [27.8815, 78.0746],
-  'CNB': [26.4499, 80.3319]
+  'NDLS': [28.6429, 77.2191], # New Delhi Railway Station Grid
+  'GZB': [28.6525, 77.4300],  # Ghaziabad Junction
+  'ALJN': [27.8817, 78.0820], # Aligarh Junction
+  'CNB': [26.4547, 80.3506]   # Kanpur Central
 }
 
 common_route = [
@@ -86,7 +86,9 @@ def get_initial_network():
         'congestion_level': 0.1,
         'weather_condition': 'Clear',
         'operational_event': 'Normal',
-        'average_speed_kmph': 80.0
+        'average_speed_kmph': 80.0,
+        'target_speed_kmph': 80.0,
+        'speed_trend': '='
     }
 
 # Memory reference bindings maintained exactly

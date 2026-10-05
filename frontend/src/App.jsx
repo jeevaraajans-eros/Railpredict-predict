@@ -8,6 +8,7 @@ const WS_URL = 'ws://localhost:8001/ws/live';
 
 function App() {
   const [trainState, setTrainState] = useState(null);
+  const [allTrains, setAllTrains] = useState({});
   const [stationETAs, setStationETAs] = useState([]);
   const [simState, setSimState] = useState({ isRunning: false, time: '12:00:00', speedMultiplier: 1 });
   const [previousStationETAs, setPreviousStationETAs] = useState([]);
@@ -25,13 +26,13 @@ function App() {
     // 1. Initial Load Bootup 
     axios.get(`${BACKEND_URL}/trains/${selectedTrain}`)
       .then(res => {
-        if(res.data) {
-          setTrainState(res.data);
+        if(res.data && res.data.train) {
+          setTrainState(res.data.train);
           // Zero delta baseline initialize
-          if (res.data.latest_eta) {
-             setStationETAs(res.data.latest_eta.station_wise_etas || []);
-             setPreviousStationETAs(res.data.latest_eta.station_wise_etas || []);
-             setEventExplanation(res.data.latest_eta.causal_breakdown || []);
+          if (res.data.train.latest_eta) {
+             setStationETAs(res.data.train.latest_eta.station_wise_etas || []);
+             setPreviousStationETAs(res.data.train.latest_eta.station_wise_etas || []);
+             setEventExplanation(res.data.train.latest_eta.causal_breakdown || []);
           }
         }
       })
@@ -46,6 +47,7 @@ function App() {
       try {
         const payload = JSON.parse(event.data);
         if (payload.type === 'SIMULATION_TICK') {
+          setAllTrains(payload.trains || {});
           const ts = payload.trains[selectedTrain];
           if (ts) {
              setTrainState(ts);
@@ -111,8 +113,10 @@ function App() {
            networkConditions={networkConditions} 
            backendUrl={BACKEND_URL}
            simState={simState}
+           allTrains={allTrains}
          />
       </main>
+      <DemoAutopilot />
     </div>
   );
 }

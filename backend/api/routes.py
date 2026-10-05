@@ -26,17 +26,16 @@ def get_train_details(train_id: str):
     return {"train": ACTIVE_TRAINS[train_id], "route": ROUTE_DATA.get(train_id, [])}
 
 @router.get("/trains/{train_id}/eta")
-async def get_train_eta(train_id: str):
+def get_train_eta(train_id: str):
     if train_id not in ACTIVE_TRAINS:
         raise HTTPException(status_code=404, detail="Train not found")
         
     try:
         engine_output = run_dynamic_eta_engine(
-            current_time=SIMULATION_STATE['current_time'],
+            current_time=datetime.now(),
             train_state=ACTIVE_TRAINS[train_id],
             remaining_route=ROUTE_DATA.get(train_id, []),
-            network_conditions=GLOBAL_NETWORK_CONDITIONS,
-            previous_eta=ACTIVE_TRAINS[train_id].get('latest_eta')
+            network_conditions=GLOBAL_NETWORK_CONDITIONS
         )
         return engine_output
     except Exception as e:
@@ -44,12 +43,12 @@ async def get_train_eta(train_id: str):
         raise HTTPException(status_code=500, detail="Internal ETA Engine Calculation Failed")
 
 @router.get("/trains/{train_id}/prediction")
-async def get_train_prediction(train_id: str):
-    eta = await get_train_eta(train_id)
+def get_train_prediction(train_id: str):
+    eta = get_train_eta(train_id)
     return {"predictions": eta['station_wise_etas']}
 
 async def trigger_eta_recalculation(train_id: str):
-    eta = await get_train_eta(train_id)
+    eta = get_train_eta(train_id)
     message = {
         "type": "ETA_UPDATE",
         "train_id": train_id,
@@ -81,27 +80,37 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
     sim_time_str = SIMULATION_STATE['current_time'].strftime("%H:%M:%S")
 
     # Translate simulation commands to mathematical engine states
+    event_message = ""
+    event_level = "WARNING"
+    
     if event.event_type == "congestion":
-        active_section = ACTIVE_TRAINS[event.train_id].get('current_section_id')
-        if 'active_disruptions' not in GLOBAL_NETWORK_CONDITIONS:
-            GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
-        GLOBAL_NETWORK_CONDITIONS['active_disruptions'][active_section] = {
-            "type": "congestion",
-            "severity": event.severity
-        }
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = event.severity
+        event_message = f"AI Risk Anomaly Extracted: Congestion Vector. {f'[{event.details}]' if event.details else ''}"
     elif event.event_type == "speed restriction":
-        GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0 * (1.0 - event.severity)
+        target = 80.0 * (1.0 - event.severity)
+        GLOBAL_NETWORK_CONDITIONS['target_speed_kmph'] = target
+        event_message = f"XGBoost Elasticity Alert: Speed bounded to {target} km/h. {f'[{event.details}]' if event.details else ''}"
     elif event.event_type == "operational halt":
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Signal Failure'
         ACTIVE_TRAINS[event.train_id]['current_delay_min'] += int(30 * event.severity)
+        event_message = f"Critical Prediction Shift: Halt (Delay matrix +{int(30 * event.severity)}m). {f'[{event.details}]' if event.details else ''}"
     elif event.event_type == "clear disruption":
         GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
         GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
-        GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0
-        GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
+        GLOBAL_NETWORK_CONDITIONS['target_speed_kmph'] = 80.0
+        event_message = f"Prediction Model Converging: Constraints autonomously clearing. {f'[{event.details}]' if event.details else ''}"
+        event_level = "INFO"
+    elif event.event_type.lower() == "rtis ping":
+        event_message = f"XGBoost Handshake Confirmed: RTIS Telemetry actively pipelining."
+        event_level = "INFO"
     else:
         raise HTTPException(status_code=400, detail="Invalid event type")
+
+    # Duplicate prevention: only append if the last event wasn't identical
+    if not EVENT_TIMELINE or EVENT_TIMELINE[-1].get("event") != event_message:
+        EVENT_TIMELINE.append({"time": sim_time_str, "event": event_message, "type": event_level})
+        if event.event_type == "clear disruption":
+            EVENT_TIMELINE.append({"time": sim_time_str, "event": "Delay recovery prediction bounds successfully converging towards baseline.", "type": "INFO"})
     
     event_msg = {
         "type": "NETWORK_EVENT",
@@ -109,41 +118,6 @@ async def receive_simulation_event(event: SimulationEvent, background_tasks: Bac
     }
     await manager.broadcast(json.dumps(event_msg))
     
+    # Asynchronously recalculate ETA bounds so API returns fast
     background_tasks.add_task(trigger_eta_recalculation, event.train_id)
     return {"status": "Event processed and dynamic ETA recalculation triggered"}
-
-@router.post("/simulation/demo")
-async def trigger_sih_demo(background_tasks: BackgroundTasks):
-    from backend.store import reset_simulation
-    import asyncio
-    
-    reset_simulation()
-    
-    async def demo_sequence():
-        # PHASE 1
-        SIMULATION_STATE['is_running'] = True
-        SIMULATION_STATE['speed_multiplier'] = 10
-        await asyncio.sleep(3.0) 
-        
-        # PHASE 2 & 3: Inject congestion
-        if 'active_disruptions' not in GLOBAL_NETWORK_CONDITIONS:
-            GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
-        GLOBAL_NETWORK_CONDITIONS['active_disruptions']["GZB-ALJN"] = {
-            "type": "congestion",
-            "severity": 0.9
-        }
-        GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.9
-        await asyncio.sleep(5.0)
-        
-        # PHASE 6: Clear disruption
-        GLOBAL_NETWORK_CONDITIONS['congestion_level'] = 0.1
-        GLOBAL_NETWORK_CONDITIONS['operational_event'] = 'Normal'
-        GLOBAL_NETWORK_CONDITIONS['average_speed_kmph'] = 80.0
-        GLOBAL_NETWORK_CONDITIONS['active_disruptions'] = {}
-        
-        # PHASE 7: Final state after recovery
-        await asyncio.sleep(5.0)
-        SIMULATION_STATE['is_running'] = False
-        
-    background_tasks.add_task(demo_sequence)
-    return {"status": "SIH Demo Sequence Started"}

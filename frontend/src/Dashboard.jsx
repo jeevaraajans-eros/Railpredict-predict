@@ -3,7 +3,7 @@ import MapVisualization from './MapVisualization';
 import ETATable from './ETATable';
 import SimulationControls from './SimulationControls';
 
-export default function Dashboard({ trainState, stationETAs, previousStationETAs, eventExplanation, networkConditions, backendUrl, simState }) {
+export default function Dashboard({ trainState, stationETAs, previousStationETAs, eventExplanation, networkConditions, backendUrl, simState, allTrains }) {
   
   return (
     <div className="grid grid-cols-12 gap-6 pb-20">
@@ -23,7 +23,10 @@ export default function Dashboard({ trainState, stationETAs, previousStationETAs
               </div>
               <div>
                 <div className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-1">Speed</div>
-                <div className="text-blue-400 font-black text-sm tracking-wide">{networkConditions?.average_speed_kmph ? networkConditions.average_speed_kmph.toFixed(0) : 80} km/h</div>
+                <div className="text-blue-400 font-black text-sm tracking-wide">
+                  <span className="font-mono text-emerald-400 font-black text-md tracking-tighter mr-1">{networkConditions?.speed_trend || '='}</span> 
+                  {networkConditions?.average_speed_kmph ? networkConditions.average_speed_kmph.toFixed(0) : 80} km/h
+                </div>
               </div>
               <div>
                 <div className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mb-1">Current Delay</div>
@@ -46,7 +49,7 @@ export default function Dashboard({ trainState, stationETAs, previousStationETAs
 
         <div className="rounded-xl bg-slate-900/40 border border-slate-800/80 p-5 h-[450px] shadow flex flex-col">
           <div className="flex-1 w-full rounded-lg overflow-hidden border border-slate-700/50 shadow-inner bg-black/50 relative">
-            <MapVisualization trainState={trainState} stationETAs={stationETAs} />
+            <MapVisualization trainState={trainState} stationETAs={stationETAs} allTrains={allTrains} networkConditions={networkConditions} />
           </div>
         </div>
         

@@ -36,7 +36,20 @@ export default function ETATable({ stationETAs, previousStationETAs }) {
             return (
               <tr key={idx} className="hover:bg-slate-800/20 transition-colors text-sm font-black group">
                 <td className="p-3 text-slate-200 group-hover:text-blue-400 transition-colors tracking-wide">{eta.station}</td>
-                <td className="p-3 text-indigo-400 font-mono tracking-widest bg-slate-950/20">{currArrival}</td>
+                <td className="p-3 text-indigo-400 bg-slate-950/20">
+                  <div className="font-mono tracking-widest leading-none">{currArrival}</div>
+                  {eta.lower_bound && eta.upper_bound && (
+                    <div className="text-[10px] text-slate-400 font-medium tracking-wide mt-1.5 leading-tight">
+                      Expected range: <br/>
+                      <span className="text-slate-300 font-mono tracking-wider">{eta.lower_bound.split(' ')[1]}</span> – <span className="text-slate-300 font-mono tracking-wider">{eta.upper_bound.split(' ')[1]}</span>
+                    </div>
+                  )}
+                  {eta.confidence && (
+                    <div className="text-[10px] text-slate-500 font-bold tracking-wider uppercase mt-1">
+                      Confidence: <span className={eta.confidence === 'High' ? 'text-emerald-500/90' : eta.confidence === 'Medium' ? 'text-amber-500/90' : 'text-rose-500/90'}>{eta.confidence}</span>
+                    </div>
+                  )}
+                </td>
                 <td className={`p-3 tracking-widest ${eta.accumulated_delay_min > 0 ? 'text-orange-400 drop-shadow-sm' : 'text-emerald-500'}`}>
                    {eta.accumulated_delay_min > 0 ? `+${eta.accumulated_delay_min}` : `${eta.accumulated_delay_min}`}m
                 </td>
